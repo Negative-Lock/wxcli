@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 type weatherResponse struct {
@@ -79,14 +83,58 @@ type weatherResponse struct {
 	} `json:"daily"`
 }
 
+func printHelp() {
+
+	// Title/Header
+	fmt.Println("\nUsage: wcli <command>")
+	fmt.Println("A simple CLI weather app.")
+	fmt.Println("Commands:")
+
+	/*
+		Defining the anonymous commands struct allows us to create structured data that will
+		be easily accessible later on in for loop.
+
+		In the second set of curly braces after the commands declaration we are assigning our
+		actual values for our command and description. New commands and their description will
+		be added here.
+	*/
+
+	commands := []struct {
+		Name        string
+		Description string
+	}{
+		{"setup", "Configure your location and API key"},
+		{"current", "Show current weather info"},
+		{"help", "Display this help message"},
+	}
+
+	/*
+		Ignore index returned by range with _ in for loop. Iterate over commands struct with cmd
+		and access structs components (Name, Description) with cmd.Name and cmd.Description and
+		display it to the screen follow by newline.
+
+		Format: %-tos = left-aligned, 10-character column
+	*/
+
+	for _, cmd := range commands {
+		fmt.Printf("  %-10s %s\n", cmd.Name, cmd.Description)
+	}
+
+	fmt.Println()
+}
+
 func main() {
 
-	lat := flag.String("lat", "", "latitude")
-	lon := flag.String("lon", "", "longitude")
-	appid := flag.String("appid", "", "api key from Open Weather Map")
-	flag.Parse()
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error Loading .env File")
+	}
 
-	url := fmt.Sprintf("https://api.openweathermap.org/data/3.0/onecall?lat=%s&lon=%s&units=imperial&exclude=minutely,hourly,alerts&appid=%s", *lat, *lon, *appid)
+	lat := os.Getenv("LATITUDE")
+	lon := os.Getenv("LONGITUDE")
+	appid := os.Getenv("API_KEY")
+
+	url := fmt.Sprintf("https://api.openweathermap.org/data/3.0/onecall?lat=%s&lon=%s&units=imperial&exclude=minutely,hourly,alerts&appid=%s", lat, lon, appid)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -105,6 +153,58 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("Current Temp: %.1f°C\n", weatherData.Current.Temp)
-	fmt.Printf("Weather: %s\n", weatherData.Daily[0].Summary)
+	if len(os.Args) < 2 {
+
+		printHelp()
+		log.Fatal("No arguments provided.")
+	}
+
+	switch os.Args[1] {
+
+	case "setup":
+		// Attempt to create (or overwrite) a file named ".env"
+		file, err := os.Create(".env")
+		if err != nil {
+			// If there's an error creating the file, log it and stop execution
+			log.Fatalf("Could not create file: %v", err)
+		}
+		// Ensure the file is closed after this function ends
+		defer file.Close()
+
+		// Create a buffered reader to read input from standard input (the terminal)
+		reader := bufio.NewReader(os.Stdin)
+
+		// A list of environment variable keys we want the user to input
+		prompts := []string{"LATITUDE", "LONGITUDE", "API_KEY"}
+
+		// Loop over each key and prompt the user for a value
+		for _, key := range prompts {
+			// Prompt the user
+			fmt.Printf("Enter %s: ", key)
+			// Read the user input until a newline is encountered
+			input, _ := reader.ReadString('\n')
+			// Remove the newline character from the input
+			input = strings.TrimSpace(input)
+			// Write the key-value pair to the .env file in "KEY=value" format
+			_, err := fmt.Fprintf(file, "%s=%s\n", key, input)
+			if err != nil {
+				// If there's an error writing to the file, log it and stop execution
+				log.Fatalf("Failed to write to file: %v", err)
+			}
+		}
+
+		// Let the user know the .env file has been created
+		fmt.Println(".env file created successfully.")
+
+	case "current":
+		fmt.Printf("Current Temp: %.1f°C\n", weatherData.Current.Temp)
+		fmt.Printf("Weather: %s\n", weatherData.Daily[0].Summary)
+
+	case "help":
+		printHelp()
+
+	default:
+		fmt.Println("Unknown argument. Use 'wcli help' for a list of commands.")
+		os.Exit(1)
+	}
 }
