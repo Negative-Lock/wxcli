@@ -113,7 +113,7 @@ func printHelp() {
 		and access structs components (Name, Description) with cmd.Name and cmd.Description and
 		display it to the screen follow by newline.
 
-		Format: %-tos = left-aligned, 10-character column
+		Format: %-10s = left-aligned, 10-character column
 	*/
 
 	for _, cmd := range commands {
@@ -123,11 +123,48 @@ func printHelp() {
 	fmt.Println()
 }
 
-func main() {
+func setup() {
+
+	// Attempt to create (or overwrite) a file named ".env"
+	file, err := os.Create(".env")
+	if err != nil {
+		// If there's an error creating the file, log it and stop execution
+		log.Fatalf("Could not create file: %v", err)
+	}
+	// Ensure the file is closed after this function ends
+	defer file.Close()
+
+	// Create a buffered reader to read input from standard input (the terminal)
+	reader := bufio.NewReader(os.Stdin)
+
+	// A list of environment variable keys we want the user to input
+	prompts := []string{"LATITUDE", "LONGITUDE", "API_KEY"}
+
+	// Loop over each key and prompt the user for a value
+	for _, key := range prompts {
+		// Prompt the user
+		fmt.Printf("Enter %s: ", key)
+		// Read the user input until a newline is encountered
+		input, _ := reader.ReadString('\n')
+		// Remove the newline character from the input
+		input = strings.TrimSpace(input)
+		// Write the key-value pair to the .env file in "KEY=value" format
+		_, err := fmt.Fprintf(file, "%s=%s\n", key, input)
+		if err != nil {
+			// If there's an error writing to the file, log it and stop execution
+			log.Fatalf("Failed to write to file: %v", err)
+		}
+	}
+	// Let the user know the .env file has been created
+	fmt.Println(".env file created successfully.")
+
+}
+
+func getWeather() weatherResponse {
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error Loading .env File")
+		log.Fatal("Error Loading .env File. Run wcli help for setup command.")
 	}
 
 	lat := os.Getenv("LATITUDE")
@@ -153,6 +190,18 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	return weatherData
+}
+
+func printWeather(weatherData weatherResponse) {
+
+	fmt.Printf("Current Temp: %.1f°C\n", weatherData.Current.Temp)
+	fmt.Printf("Weather: %s\n", weatherData.Daily[0].Summary)
+
+}
+
+func main() {
+
 	if len(os.Args) < 2 {
 
 		printHelp()
@@ -162,43 +211,10 @@ func main() {
 	switch os.Args[1] {
 
 	case "setup":
-		// Attempt to create (or overwrite) a file named ".env"
-		file, err := os.Create(".env")
-		if err != nil {
-			// If there's an error creating the file, log it and stop execution
-			log.Fatalf("Could not create file: %v", err)
-		}
-		// Ensure the file is closed after this function ends
-		defer file.Close()
-
-		// Create a buffered reader to read input from standard input (the terminal)
-		reader := bufio.NewReader(os.Stdin)
-
-		// A list of environment variable keys we want the user to input
-		prompts := []string{"LATITUDE", "LONGITUDE", "API_KEY"}
-
-		// Loop over each key and prompt the user for a value
-		for _, key := range prompts {
-			// Prompt the user
-			fmt.Printf("Enter %s: ", key)
-			// Read the user input until a newline is encountered
-			input, _ := reader.ReadString('\n')
-			// Remove the newline character from the input
-			input = strings.TrimSpace(input)
-			// Write the key-value pair to the .env file in "KEY=value" format
-			_, err := fmt.Fprintf(file, "%s=%s\n", key, input)
-			if err != nil {
-				// If there's an error writing to the file, log it and stop execution
-				log.Fatalf("Failed to write to file: %v", err)
-			}
-		}
-
-		// Let the user know the .env file has been created
-		fmt.Println(".env file created successfully.")
+		setup()
 
 	case "current":
-		fmt.Printf("Current Temp: %.1f°C\n", weatherData.Current.Temp)
-		fmt.Printf("Weather: %s\n", weatherData.Daily[0].Summary)
+		printWeather(getWeather())
 
 	case "help":
 		printHelp()
