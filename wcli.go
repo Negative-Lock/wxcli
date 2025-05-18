@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -88,7 +89,7 @@ func printHelp() {
 	// Title/Header
 	fmt.Println("\nUsage: wcli <command>")
 	fmt.Println("A simple CLI weather app.")
-	fmt.Println("Commands:")
+	fmt.Println("USAGE:")
 
 	/*
 		Defining the anonymous commands struct allows us to create structured data that will
@@ -193,10 +194,24 @@ func getWeather() weatherResponse {
 	return weatherData
 }
 
-func printWeather(weatherData weatherResponse) {
+func weatherToday(weatherData weatherResponse) {
 
-	fmt.Printf("Current Temp: %.1f°C\n", weatherData.Current.Temp)
+	fmt.Printf("Current Temp: %.1f°F\n", weatherData.Current.Temp)
 	fmt.Printf("Weather: %s\n", weatherData.Daily[0].Summary)
+
+}
+
+func weatherDaily(weatherData weatherResponse) {
+
+	days := len(weatherData.Daily)
+
+	for day := range days {
+
+		t := time.Unix(int64(weatherData.Daily[day].Dt), 0)
+
+		fmt.Printf("%s ", t.Weekday())
+		fmt.Printf("%.1f°F\n", weatherData.Daily[day].Temp.Day)
+	}
 
 }
 
@@ -214,7 +229,10 @@ func main() {
 		setup()
 
 	case "current":
-		printWeather(getWeather())
+		weatherToday(getWeather())
+
+	case "daily":
+		weatherDaily(getWeather())
 
 	case "help":
 		printHelp()
