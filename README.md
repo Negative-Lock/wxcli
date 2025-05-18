@@ -1,7 +1,6 @@
 # wxcli
 
-**wxcli** is a simple command-line tool built in Go that fetches current weather data from the [OpenWeatherMap API](https://openweathermap.org/api).
-The project was created primarily as a learning exercise to explore building CLI tools in Golang and working with external APIs.
+**wxcli** is a simple command-line tool built in Go that fetches current weather data from the [OpenWeatherMap API](https://openweathermap.org/api). The project was created primarily as a learning exercise to explore the Go programming language, building CLI applications, and integrating with external APIs.
 
 ## Features
 
